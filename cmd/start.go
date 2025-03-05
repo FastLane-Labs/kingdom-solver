@@ -20,6 +20,11 @@ import (
 const (
 	permissionlessAuctionMethod = "atlas_permissionlessAuction"
 	solverNamespace             = "solver"
+	userOperationsSubscription  = "userOperations"
+)
+
+var (
+	networkRetryDelay = 1 * time.Second
 )
 
 type AuctionRequest struct {
@@ -84,12 +89,12 @@ func runSolver(
 		for {
 			uoChan = make(chan *types.UserOperationPartialRaw, 32)
 
-			sub, err = operationsRelayClient.Subscribe(context.Background(), solverNamespace, uoChan)
+			sub, err = operationsRelayClient.Subscribe(context.Background(), solverNamespace, uoChan, userOperationsSubscription)
 			if err != nil {
-				log.Error("failed to subscribe to the operations relay", "retry", "1s", "error", err)
+				log.Error("failed to subscribe to the operations relay", "retry", networkRetryDelay, "error", err)
 
 				select {
-				case <-time.After(1 * time.Second):
+				case <-time.After(networkRetryDelay):
 				case <-interrupt:
 					os.Exit(0)
 				}
