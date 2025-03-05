@@ -33,6 +33,11 @@ type AuctionRequest struct {
 	Data               hexutil.Bytes
 }
 
+type UserOperationNotification struct {
+	AuctionId            string                         `json:"auction_id"`
+	PartialUserOperation *types.UserOperationPartialRaw `json:"partial_user_operation"`
+}
+
 func main() {
 	log.InitLogger("debug")
 
@@ -81,13 +86,13 @@ func runSolver(
 	signal.Notify(interrupt, os.Interrupt)
 
 	var (
-		uoChan chan *types.UserOperationPartialRaw
+		uoChan chan *UserOperationNotification
 		sub    *rpc.ClientSubscription
 	)
 
 	subscribe := func() {
 		for {
-			uoChan = make(chan *types.UserOperationPartialRaw, 32)
+			uoChan = make(chan *UserOperationNotification, 32)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			sub, err = operationsRelayClient.Subscribe(ctx, solverNamespace, uoChan, userOperationsSubscription)
@@ -111,6 +116,8 @@ func runSolver(
 
 	subscribe()
 
+	log.Info("solver started")
+
 	for {
 		select {
 		case <-interrupt:
@@ -121,8 +128,18 @@ func runSolver(
 			log.Error("subscription error, resubscribing...", "error", err)
 			subscribe()
 
-		case uo := <-uoChan:
-			log.Info("received user operation", "userOperation", uo)
+		case n := <-uoChan:
+			if n.PartialUserOperation.ChainId.ToInt().Cmp(chainId) != 0 {
+				// Skipping other chains
+				continue
+			}
+
+			if n.PartialUserOperation.Control != kingdomDappControlAddress {
+				// Skipping other dapps
+				continue
+			}
+
+			log.Info("received user operation", "auctionId", n.AuctionId, "userOperation", n.PartialUserOperation.UserOpHash.Hex())
 		}
 	}
 }
