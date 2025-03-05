@@ -89,7 +89,10 @@ func runSolver(
 		for {
 			uoChan = make(chan *types.UserOperationPartialRaw, 32)
 
-			sub, err = operationsRelayClient.Subscribe(context.Background(), solverNamespace, uoChan, userOperationsSubscription)
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			sub, err = operationsRelayClient.Subscribe(ctx, solverNamespace, uoChan, userOperationsSubscription)
+			cancel()
+
 			if err != nil {
 				log.Error("failed to subscribe to the operations relay", "retry", networkRetryDelay, "error", err)
 
