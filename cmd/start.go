@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/sync/errgroup"
 )
@@ -107,7 +108,15 @@ func runSolver(chainId *big.Int, ethClient *ethclient.Client) {
 		os.Exit(1)
 	}
 
-	operationsRelayClient, err := rpc.Dial(os.Getenv("OPERATIONS_RELAY_URL"))
+	dialerOption := rpc.WithWebsocketDialer(websocket.Dialer{
+		ReadBufferSize:  1024 * 1024,
+		WriteBufferSize: 1024 * 1024,
+	})
+
+	ctx, cancel := getContextWithTimeout()
+	operationsRelayClient, err := rpc.DialOptions(ctx, os.Getenv("OPERATIONS_RELAY_URL"), dialerOption)
+	cancel()
+
 	if err != nil {
 		log.Error("failed to connect to the operations relay", "error", err)
 		os.Exit(1)
