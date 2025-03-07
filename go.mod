@@ -7,6 +7,8 @@ toolchain go1.23.7
 require (
 	github.com/FastLane-Labs/atlas-sdk-go v0.0.4
 	github.com/ethereum/go-ethereum v1.15.4
+	github.com/mitchellh/mapstructure v1.4.1
+	golang.org/x/sync v0.10.0
 )
 
 require (
@@ -32,7 +34,6 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	golang.org/x/crypto v0.32.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )

@@ -1,0 +1,9 @@
+{
+  "name": "kingdom-solver",
+  "version": "1.0.0",
+  "repository": "https://github.com/FastLane-Labs/kingdom-solver",
+  "author": "FastLane",
+  "scripts": {
+    "deploy-arbitrum": "source .env && forge script script/Deploy.s.sol:DeployDemoSolverScript --rpc-url ${ARBITRUM_RPC_URL} --broadcast --etherscan-api-key ${ARBISCAN_API_KEY} --verify --delay 30"
+  }
+}
