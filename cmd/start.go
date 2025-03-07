@@ -79,29 +79,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	kingdomDappControlAddress := os.Getenv("KINGDOM_DAPP_CONTROL")
-	if !common.IsHexAddress(kingdomDappControlAddress) {
-		log.Error("invalid kingdom dapp control address", "address", kingdomDappControlAddress)
-		os.Exit(1)
-	}
-
 	flag.Parse()
 
-	if flag.Arg(0) == "solver" {
-		runSolver(chainId, ethClient, common.HexToAddress(kingdomDappControlAddress))
-	} else if flag.Arg(0) == "trigger-auction" {
-		triggerAuction(chainId, common.HexToAddress(kingdomDappControlAddress))
-	} else {
+	switch flag.Arg(0) {
+	case "solver":
+		runSolver(chainId, ethClient)
+
+	case "trigger-auction":
+		triggerAuction(chainId)
+
+	case "print-bonded-atleth":
+		printBondedAtleth(chainId, ethClient)
+
+	case "deposit-and-bond-atleth":
+		depositAndBondAtleth(chainId, ethClient)
+
+	default:
 		log.Error("invalid command", "command", flag.Arg(0))
 		os.Exit(1)
 	}
 }
 
-func runSolver(
-	chainId *big.Int,
-	ethClient *ethclient.Client,
-	kingdomDappControlAddress common.Address,
-) {
+func runSolver(chainId *big.Int, ethClient *ethclient.Client) {
+	kingdomDappControlAddress, err := getKingdomDappControlAddress()
+	if err != nil {
+		log.Error("failed to get kingdom dapp control address", "error", err)
+		os.Exit(1)
+	}
+
 	operationsRelayClient, err := rpc.Dial(os.Getenv("OPERATIONS_RELAY_URL"))
 	if err != nil {
 		log.Error("failed to connect to the operations relay", "error", err)
@@ -173,7 +178,7 @@ func runSolver(
 				continue
 			}
 
-			log.Info("sending solution", "solution")
+			log.Info("sending solution")
 
 			ctx, cancel := getContextWithTimeout()
 			err = operationsRelayClient.CallContext(ctx, nil, submitSolverOperationMethod, solution)
@@ -204,6 +209,14 @@ func getSolverContract() (common.Address, error) {
 		return common.Address{}, fmt.Errorf("invalid solver contract address, %s", solverContractAddress)
 	}
 	return common.HexToAddress(solverContractAddress), nil
+}
+
+func getKingdomDappControlAddress() (common.Address, error) {
+	kingdomDappControlAddress := os.Getenv("KINGDOM_DAPP_CONTROL")
+	if !common.IsHexAddress(kingdomDappControlAddress) {
+		return common.Address{}, fmt.Errorf("invalid kingdom dapp control address, %s", kingdomDappControlAddress)
+	}
+	return common.HexToAddress(kingdomDappControlAddress), nil
 }
 
 func getPoolTokens(ethClient *ethclient.Client, poolAddress common.Address) ([]common.Address, error) {
@@ -349,7 +362,13 @@ func buildSolution(ethClient *ethclient.Client, n *UserOperationNotification) (*
 	}, nil
 }
 
-func triggerAuction(chainId *big.Int, kingdomDappControlAddress common.Address) {
+func triggerAuction(chainId *big.Int) {
+	kingdomDappControlAddress, err := getKingdomDappControlAddress()
+	if err != nil {
+		log.Error("failed to get kingdom dapp control address", "error", err)
+		os.Exit(1)
+	}
+
 	auctioneerClient, err := rpc.Dial(os.Getenv("AUCTIONEER_URL"))
 	if err != nil {
 		log.Error("failed to connect to the auctioneer", "error", err)
