@@ -229,6 +229,11 @@ func getKingdomDappControlAddress() (common.Address, error) {
 }
 
 func getPoolTokens(ethClient *ethclient.Client, poolAddress common.Address) ([]common.Address, error) {
+	// return []common.Address{
+	// 	common.HexToAddress("0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"),
+	// 	common.HexToAddress("0xaf88d065e77c8cC2239327C5EDb3A432268e5831"),
+	// }, nil
+
 	pool, err := ramsesv2pool.NewRamsesV2Pool(poolAddress, ethClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pool, %w", err)
