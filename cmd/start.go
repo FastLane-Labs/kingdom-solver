@@ -95,6 +95,12 @@ func main() {
 	case "deposit-and-bond-atleth":
 		depositAndBondAtleth(chainId, ethClient)
 
+	case "print-solver-contract-erc20-balance":
+		printSolverContractErc20Balance(ethClient, flag.Arg(1))
+
+	case "swap-erc20-to-solver-contract":
+		swapErc20ToSolverContract(chainId, ethClient, flag.Arg(1))
+
 	default:
 		log.Error("invalid command", "command", flag.Arg(0))
 		os.Exit(1)

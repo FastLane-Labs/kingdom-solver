@@ -16,7 +16,7 @@ import (
 
 var (
 	atlasVersion     = config.AtlasV_1_1
-	atlEthBondAmount = big.NewInt(1e16)
+	atlEthBondAmount = big.NewInt(1e6)
 )
 
 func printBondedAtleth(chainId *big.Int, ethClient *ethclient.Client) {
@@ -96,6 +96,8 @@ func depositAndBondAtleth(chainId *big.Int, ethClient *ethclient.Client) {
 		log.Error("failed to wait for tx inclusion", "error", err)
 		os.Exit(1)
 	}
+
+	log.Info("deposit and bond done")
 }
 
 func getAtlasContract(chainId *big.Int, ethClient *ethclient.Client) (*atlas_1_1.Atlas, error) {
