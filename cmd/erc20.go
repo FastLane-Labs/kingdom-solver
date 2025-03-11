@@ -8,6 +8,7 @@ import (
 
 	"github.com/FastLane-Labs/kingdom-solver/contract/erc20"
 	"github.com/FastLane-Labs/kingdom-solver/contract/kingdomrouter"
+	"github.com/FastLane-Labs/kingdom-solver/contract/weth9"
 	"github.com/FastLane-Labs/kingdom-solver/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -16,7 +17,7 @@ import (
 )
 
 var (
-	ethSwapAmount = big.NewInt(1e6)
+	ethSwapAmount = big.NewInt(1e15)
 )
 
 func printSolverContractErc20Balance(ethClient *ethclient.Client, erc20Address string) {
@@ -56,6 +57,123 @@ func printSolverContractErc20Balance(ethClient *ethclient.Client, erc20Address s
 	}
 
 	log.Info("erc20 balance", "token", symbol, "balance", balance)
+}
+
+func wrapEthToSolverContract(chainId *big.Int, ethClient *ethclient.Client) {
+	wethAddress := os.Getenv("WETH_ADDRESS")
+	if !common.IsHexAddress(wethAddress) {
+		log.Error("invalid weth address", "address", wethAddress)
+		os.Exit(1)
+	}
+
+	wethContract, err := weth9.NewWeth9(common.HexToAddress(wethAddress), ethClient)
+	if err != nil {
+		log.Error("failed to get weth contract", "error", err)
+		os.Exit(1)
+	}
+
+	solverPk, solverAddress, err := getSolverPk()
+	if err != nil {
+		log.Error("failed to get solver pk", "error", err)
+		os.Exit(1)
+	}
+
+	solverContractAddress, err := getSolverContract()
+	if err != nil {
+		log.Error("failed to get solver contract address", "error", err)
+		os.Exit(1)
+	}
+
+	opts, cancel := getOptsWithTimeout()
+	currentBalance, err := wethContract.BalanceOf(opts, solverContractAddress)
+	cancel()
+
+	if err != nil {
+		log.Error("failed to get weth balance", "error", err)
+		os.Exit(1)
+	}
+
+	log.Info("current balance", "token", "weth", "balance", currentBalance)
+
+	transactOpts, err := bind.NewKeyedTransactorWithChainID(solverPk, chainId)
+	if err != nil {
+		log.Error("failed to create transactor", "error", err)
+		os.Exit(1)
+	}
+
+	transactOpts.From = solverAddress
+	transactOpts.Value = ethSwapAmount
+
+	ctx, cancel := getContextWithTimeout()
+	transactOpts.Context = ctx
+
+	tx, err := wethContract.Deposit(transactOpts)
+	cancel()
+
+	if err != nil {
+		log.Error("failed to wrap eth to weth", "error", err)
+		os.Exit(1)
+	}
+
+	log.Info("wrap eth to weth sent, waiting for inclusion...", "tx", tx.Hash().Hex())
+
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	receipt, err := bind.WaitMined(ctx, ethClient, tx)
+	if err != nil {
+		log.Error("failed to wait for tx inclusion", "error", err)
+		os.Exit(1)
+	}
+
+	if receipt.Status == types.ReceiptStatusFailed {
+		log.Error("transaction reverted")
+		os.Exit(1)
+	}
+
+	log.Info("wrap eth to weth done")
+
+	transactOpts.Value = common.Big0
+
+	ctx, cancel = getContextWithTimeout()
+	transactOpts.Context = ctx
+
+	tx, err = wethContract.Transfer(transactOpts, solverContractAddress, ethSwapAmount)
+	cancel()
+
+	if err != nil {
+		log.Error("failed to transfer weth to solver contract", "error", err)
+		os.Exit(1)
+	}
+
+	log.Info("transfer weth to solver contract sent, waiting for inclusion...", "tx", tx.Hash().Hex())
+
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	receipt, err = bind.WaitMined(ctx, ethClient, tx)
+	if err != nil {
+		log.Error("failed to wait for tx inclusion", "error", err)
+		os.Exit(1)
+	}
+
+	if receipt.Status == types.ReceiptStatusFailed {
+		log.Error("transaction reverted")
+		os.Exit(1)
+	}
+
+	log.Info("transfer weth to solver contract done")
+
+	opts, cancel = getOptsWithTimeout()
+	newBalance, err := wethContract.BalanceOf(opts, solverContractAddress)
+	cancel()
+
+	if err != nil {
+		log.Error("failed to get weth balance", "error", err)
+		os.Exit(1)
+	}
+
+	log.Info("new balance", "token", "weth", "balance", newBalance)
 }
 
 func swapErc20ToSolverContract(chainId *big.Int, ethClient *ethclient.Client, erc20Address string) {
@@ -149,7 +267,7 @@ func swapErc20ToSolverContract(chainId *big.Int, ethClient *ethclient.Client, er
 		os.Exit(1)
 	}
 
-	log.Info("swap erc20 to solver contract sent, waiting for inclusion...", "tx", tx.Hash())
+	log.Info("swap erc20 to solver contract sent, waiting for inclusion...", "tx", tx.Hash().Hex())
 
 	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()

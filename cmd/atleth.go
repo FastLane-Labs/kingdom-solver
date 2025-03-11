@@ -16,7 +16,7 @@ import (
 
 var (
 	atlasVersion     = config.AtlasV_1_1
-	atlEthBondAmount = big.NewInt(1e6)
+	atlEthBondAmount = big.NewInt(1e15)
 )
 
 func printBondedAtleth(chainId *big.Int, ethClient *ethclient.Client) {
@@ -86,7 +86,7 @@ func depositAndBondAtleth(chainId *big.Int, ethClient *ethclient.Client) {
 		os.Exit(1)
 	}
 
-	log.Info("deposit and bond sent, waiting for inclusion...", "tx", tx.Hash())
+	log.Info("deposit and bond sent, waiting for inclusion...", "tx", tx.Hash().Hex())
 
 	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()

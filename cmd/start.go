@@ -101,6 +101,9 @@ func main() {
 	case "swap-erc20-to-solver-contract":
 		swapErc20ToSolverContract(chainId, ethClient, flag.Arg(1))
 
+	case "wrap-eth-to-solver-contract":
+		wrapEthToSolverContract(chainId, ethClient)
+
 	default:
 		log.Error("invalid command", "command", flag.Arg(0))
 		os.Exit(1)
@@ -235,10 +238,10 @@ func getKingdomDappControlAddress() (common.Address, error) {
 }
 
 func getPoolTokens(ethClient *ethclient.Client, poolAddress common.Address) ([]common.Address, error) {
-	// return []common.Address{
-	// 	common.HexToAddress("0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"),
-	// 	common.HexToAddress("0xaf88d065e77c8cC2239327C5EDb3A432268e5831"),
-	// }, nil
+	return []common.Address{
+		common.HexToAddress("0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"),
+		common.HexToAddress("0xaf88d065e77c8cC2239327C5EDb3A432268e5831"),
+	}, nil
 
 	pool, err := ramsesv2pool.NewRamsesV2Pool(poolAddress, ethClient)
 	if err != nil {
@@ -293,6 +296,13 @@ func buildSolution(ethClient *ethclient.Client, n *UserOperationNotification) (*
 		return nil, fmt.Errorf("failed to get solver contract address, %w", err)
 	}
 
+	_wethAddress := os.Getenv("WETH_ADDRESS")
+	if !common.IsHexAddress(_wethAddress) {
+		return nil, fmt.Errorf("invalid weth address, %s", _wethAddress)
+	}
+
+	wethAddress := common.HexToAddress(_wethAddress)
+
 	feeSetterIntentMethod, ok := contract.KingdomDAppControlAbi.Methods[feeSetterIntentFunction]
 	if !ok {
 		return nil, fmt.Errorf("method %s not found", feeSetterIntentFunction)
@@ -318,8 +328,10 @@ func buildSolution(ethClient *ethclient.Client, n *UserOperationNotification) (*
 	}
 
 	var (
-		tokenIn  common.Address
-		tokenOut common.Address
+		tokenIn   common.Address
+		tokenOut  common.Address
+		amountIn  *big.Int
+		bidAmount *big.Int
 	)
 
 	if poolTokens[0] == feeIntent.BidToken {
@@ -330,12 +342,20 @@ func buildSolution(ethClient *ethclient.Client, n *UserOperationNotification) (*
 		tokenOut = poolTokens[1]
 	}
 
+	if tokenIn == wethAddress {
+		amountIn = big.NewInt(1e9)
+		bidAmount = big.NewInt(1e2)
+	} else {
+		amountIn = big.NewInt(1e2)
+		bidAmount = big.NewInt(1e9)
+	}
+
 	data, err := contract.DemoSolverAbi.Pack(
 		demoSwapFunction,
 		feeIntent.PoolAddress,
 		tokenIn,
 		tokenOut,
-		big.NewInt(1e9),
+		amountIn,
 		feeIntent.Fee,
 		true,
 	)
@@ -353,7 +373,7 @@ func buildSolution(ethClient *ethclient.Client, n *UserOperationNotification) (*
 		Control:      n.PartialUserOperation.Control,
 		UserOpHash:   n.PartialUserOperation.UserOpHash,
 		BidToken:     feeIntent.BidToken,
-		BidAmount:    big.NewInt(1e9),
+		BidAmount:    bidAmount,
 		Data:         data,
 	}
 

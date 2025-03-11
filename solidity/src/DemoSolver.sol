@@ -44,7 +44,7 @@ contract DemoSolver is SolverBase {
         require(msg.sender == _owner || msg.sender == address(this), "Invalid caller");
 
         if (checkCurrentFee) {
-            require(IRamsesV2Pool(pool).currentFee() == 0, "Pool fee not 0");
+            require(IRamsesV2Pool(pool).currentFee() == 1, "Pool fee not 1");
         }
 
         IERC20(tokenIn).approve(router, amountIn);
