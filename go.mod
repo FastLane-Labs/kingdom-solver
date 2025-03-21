@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.23.7
 
 require (
-	github.com/FastLane-Labs/atlas-sdk-go v0.0.4
+	github.com/FastLane-Labs/atlas-sdk-go v0.0.5-0.20250321101413-91e844bd5330
 	github.com/ethereum/go-ethereum v1.15.4
 	github.com/gorilla/websocket v1.4.2
 	github.com/mitchellh/mapstructure v1.4.1
